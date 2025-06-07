@@ -27,7 +27,7 @@ fn type_cmd(args: &[String]) {
     let command = args[0].clone();
     match builtins.get(command.as_str()) {
         Some(_) => println!("{} is a shell builtin", command),
-        _ => println!("Error: invalid argments"),
+        _ => println!("{}: not found", command),
     }
 }
 
