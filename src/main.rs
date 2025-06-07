@@ -14,13 +14,19 @@ fn type_cmd(args: &[String]) {
     builtins.insert("exit", "exit <exit_status>");
     builtins.insert("type", "type <command>");
 
-    let mut command = args[0].clone();
     if args.is_empty() || args.len() > 1 {
-        command = "type".to_string();
+        match builtins.get(&"type") {
+            Some(&help) => { 
+                println!("{}", help);
+                return;
+            },
+            _ => println!("Error: invalid argments"),
+        }
     }
 
+    let command = args[0].clone();
     match builtins.get(command.as_str()) {
-        Some(&help) => println!("{}", help),
+        Some(_) => println!("{} is a shell builtin", command),
         _ => println!("Error: invalid argments"),
     }
 }
