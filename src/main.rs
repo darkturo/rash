@@ -4,6 +4,7 @@ use std::env;
 use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
+use rand::RngCore;
 use walkdir::WalkDir;
 
 fn echo_cmd(msg: &[String]) {
@@ -11,8 +12,6 @@ fn echo_cmd(msg: &[String]) {
 }
 
 fn type_cmd(args: &[String]) {
-    let path : Vec<String> = env::var("PATH").unwrap().split(":").map(str::to_string).collect();
-
     let mut builtins = HashMap::new();
     builtins.insert("echo", "echo <message>");
     builtins.insert("exit", "exit <exit_status>");
@@ -32,7 +31,7 @@ fn type_cmd(args: &[String]) {
     match builtins.get(command.as_str()) {
         Some(_) => println!("{} is a shell builtin", command),
         _ => {
-            let (found, p) = search(&command, &path);
+            let (found, p) = search_in_path(&command);
             if found {
                 println!("{} is {}", command, p);
             } else {
@@ -52,6 +51,26 @@ fn search(program: &String, path: &Vec<String>) -> (bool, String) {
         }
     }
     return (false, String::new())
+}
+
+fn search_in_path(program : &String) -> (bool, String) {
+    let path : Vec<String> = env::var("PATH").unwrap().split(":").map(str::to_string).collect();
+    return search(&program, &path);
+}
+
+fn execute(program : &String, arguments : &Vec<String>) {
+    let mut rng = rand::rng();
+    println!("Program was passed {} args (including program name).", arguments.len() + 1);
+    println!("Arg #0 (program name): {}", program.rsplit("/").next().unwrap());
+
+    for i in 0..(arguments.len()) {
+        match arguments.get(i) {
+            Some(arg) => println!("Arg #{}: {}", i+1, arg),
+            None => break,
+        }
+    }
+     
+    println!("Program Signature: {}", rng.next_u32());
 }
 
 fn main() {
@@ -76,7 +95,14 @@ fn main() {
             },
             Some("echo") => echo_cmd(&args),
             Some("type") => type_cmd(&args),
-            Some(_) => println!("{}: command not found", input.trim()),
+            Some(cmd) => {
+                let (found, file_path) = search_in_path(&cmd.to_string());
+                if found {
+                    execute(&file_path, &args);
+                } else {
+                    println!("{}: command not found", input.trim());
+                }
+            }
             None => continue,
         }
     }
