@@ -11,6 +11,8 @@ fn echo_cmd(msg: &[String]) {
 }
 
 fn type_cmd(args: &[String]) {
+    let path : Vec<String> = env::var("PATH").unwrap().split(":").map(str::to_string).collect();
+
     let mut builtins = HashMap::new();
     builtins.insert("echo", "echo <message>");
     builtins.insert("exit", "exit <exit_status>");
@@ -29,7 +31,14 @@ fn type_cmd(args: &[String]) {
     let command = args[0].clone();
     match builtins.get(command.as_str()) {
         Some(_) => println!("{} is a shell builtin", command),
-        _ => println!("{}: not found", command),
+        _ => {
+            let (found, p) = search(&command, &path);
+            if found {
+                println!("{} is {}", command, p);
+            } else {
+                println!("{}: not found", command);
+            }
+        }
     }
 }
 
@@ -46,7 +55,6 @@ fn search(program: &String, path: &Vec<String>) -> (bool, String) {
 }
 
 fn main() {
-    let path : Vec<String> = env::var("PATH").unwrap().split(":").map(str::to_string).collect();
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -68,14 +76,7 @@ fn main() {
             },
             Some("echo") => echo_cmd(&args),
             Some("type") => type_cmd(&args),
-            Some(cmd) => {
-                let (found, p) = search(&cmd.to_string(), &path);
-                if found {
-                    println!("{} is {}", cmd, p);
-                } else {
-                    println!("{}: command not found", input.trim());
-                }
-            },
+            Some(_) => println!("{}: command not found", input.trim()),
             None => continue,
         }
     }
