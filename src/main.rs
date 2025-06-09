@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 
 use std::env;
+use std::fs;
 use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
@@ -16,6 +17,7 @@ fn type_cmd(args: &[String]) {
     builtins.insert("echo", "echo <message>");
     builtins.insert("exit", "exit <exit_status>");
     builtins.insert("type", "type <command>");
+    builtins.insert("pwd", "pwd");
 
     if args.is_empty() || args.len() > 1 {
         match builtins.get(&"type") {
@@ -39,6 +41,19 @@ fn type_cmd(args: &[String]) {
             }
         }
     }
+}
+
+fn pwd_cmd() {
+    let pwd = WalkDir::new(".").max_depth(0).into_iter().next();
+    match pwd {
+        Some(Ok(entry)) => {
+            let abs_path = fs::canonicalize(entry.path()).unwrap();
+            println!("{}", abs_path.display());
+        },
+        Some(Err(error)) => eprintln!("failed to get current directory: {}", error),
+        None => eprintln!("no current working directory available!")
+    }
+    
 }
 
 fn search(program: &String, path: &Vec<String>) -> (bool, String) {
@@ -87,6 +102,7 @@ fn main() {
             },
             Some("echo") => echo_cmd(&args),
             Some("type") => type_cmd(&args),
+            Some("pwd") => pwd_cmd(),
             Some(cmd) => {
                 let (found, file_path) = search_in_path(&cmd.to_string());
                 if found {
