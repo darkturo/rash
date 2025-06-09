@@ -8,6 +8,28 @@ use std::collections::HashMap;
 use std::process::Command;
 use walkdir::WalkDir;
 
+struct RushState {
+    builtins : HashMap<String, String>,
+    path : Vec<String>,
+    current_dir: String,
+}
+
+impl RushState {
+    pub fn new() -> Self {
+        let mut builtins_table = HashMap::new();
+        builtins_table.insert("echo".to_string(), "echo <message>".to_string());
+        builtins_table.insert("exit".to_string(), "exit <exit_status>".to_string());
+        builtins_table.insert("type".to_string(), "type <command>".to_string());
+        builtins_table.insert("pwd".to_string(), "pwd".to_string());
+    
+        return RushState{
+            path: env::var("PATH").unwrap().split(":").map(str::to_string).collect(),
+            builtins: builtins_table,
+            current_dir: ".".to_string(),
+        }
+    }
+}
+
 fn echo_cmd(msg: &[String]) {
     println!("{}", msg.join(" "));
 }
@@ -81,6 +103,8 @@ fn execute(program : &String, arguments : &Vec<String>) {
 }
 
 fn main() {
+    let mut rush = RushState::new();
+
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
