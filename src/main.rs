@@ -4,7 +4,7 @@ use std::env;
 use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
-use rand::RngCore;
+use std::process::Command;
 use walkdir::WalkDir;
 
 fn echo_cmd(msg: &[String]) {
@@ -59,18 +59,10 @@ fn search_in_path(program : &String) -> (bool, String) {
 }
 
 fn execute(program : &String, arguments : &Vec<String>) {
-    let mut rng = rand::rng();
-    println!("Program was passed {} args (including program name).", arguments.len() + 1);
-    println!("Arg #0 (program name): {}", program.rsplit("/").next().unwrap());
+    let cmd = program.rsplit("/").next().unwrap();
+    let output = Command::new(cmd).args(arguments).output().expect("failed to execute process");
 
-    for i in 0..(arguments.len()) {
-        match arguments.get(i) {
-            Some(arg) => println!("Arg #{}: {}", i+1, arg),
-            None => break,
-        }
-    }
-     
-    println!("Program Signature: {}", rng.next_u32());
+    print!("{}", String::from_utf8_lossy(&output.stdout));
 }
 
 fn main() {
@@ -102,7 +94,7 @@ fn main() {
                 } else {
                     println!("{}: command not found", input.trim());
                 }
-            }
+            },
             None => continue,
         }
     }
