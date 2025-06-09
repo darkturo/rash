@@ -2,6 +2,7 @@
 
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
@@ -21,6 +22,7 @@ impl RushShell {
         builtins_table.insert("exit".to_string(), "exit <exit_status>".to_string());
         builtins_table.insert("type".to_string(), "type <command>".to_string());
         builtins_table.insert("pwd".to_string(), "pwd".to_string());
+        builtins_table.insert("cd".to_string(), "cd <target_directory>".to_string());
     
         return RushShell{
             path: env::var("PATH").unwrap().split(":").map(str::to_string).collect(),
@@ -40,7 +42,7 @@ impl RushShell {
                     println!("{}", help);
                     return;
                 },
-                _ => println!("Error: invalid argments"),
+                _ => eprintln!("Error: invalid argments"),
             }
         }
     
@@ -49,7 +51,7 @@ impl RushShell {
             Some(_) => println!("{} is a shell builtin", command),
             _ => match self.search(&command) {
                     Some(p) => println!("{} is {}", command, p),
-                    None => println!("{}: not found", command),
+                    None => eprintln!("{}: not found", command),
                 },
         }
     }
@@ -66,13 +68,25 @@ impl RushShell {
         }
     }
 
+    pub fn chdir(&mut self, args: &[String]) {
+        if args.len() > 1{
+            eprintln!("cd: too many arguments")
+        }
+        let dir = &args[0];
+        if Path::new(dir).exists() {
+            self.current_dir = dir.clone();
+        } else {
+            eprintln!("cd: {}: No such file or directory", dir);
+        }
+    }
+
     fn search(&self, program: &String) -> Option<String> {
         for p in &self.path {
             for entry in WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
                 let bin = entry.path().display().to_string();
                 if bin.ends_with(&format!("/{}", program)) {
                     return Some(bin);
-                 }                 
+                 }
             }
         }
         return None
@@ -111,6 +125,8 @@ fn main() {
             Some("echo") => rush.echo(&args),
             Some("type") => rush.cmd_type(&args),
             Some("pwd") => rush.pwd(),
+            Some("cd") => rush.chdir(&args),
+            Some("chdir") => rush.chdir(&args),
             Some(cmd) => {
                 match rush.search(&cmd.to_string()) {
                     Some(file_path) => rush.execute(&file_path, &args),
