@@ -8,13 +8,13 @@ use std::collections::HashMap;
 use std::process::Command;
 use walkdir::WalkDir;
 
-struct RushState {
+struct RushShell {
     builtins : HashMap<String, String>,
     path : Vec<String>,
     current_dir: String,
 }
 
-impl RushState {
+impl RushShell {
     pub fn new() -> Self {
         let mut builtins_table = HashMap::new();
         builtins_table.insert("echo".to_string(), "echo <message>".to_string());
@@ -22,88 +22,72 @@ impl RushState {
         builtins_table.insert("type".to_string(), "type <command>".to_string());
         builtins_table.insert("pwd".to_string(), "pwd".to_string());
     
-        return RushState{
+        return RushShell{
             path: env::var("PATH").unwrap().split(":").map(str::to_string).collect(),
             builtins: builtins_table,
             current_dir: ".".to_string(),
         }
     }
-}
 
-fn echo_cmd(msg: &[String]) {
-    println!("{}", msg.join(" "));
-}
-
-fn type_cmd(args: &[String]) {
-    let mut builtins = HashMap::new();
-    builtins.insert("echo", "echo <message>");
-    builtins.insert("exit", "exit <exit_status>");
-    builtins.insert("type", "type <command>");
-    builtins.insert("pwd", "pwd");
-
-    if args.is_empty() || args.len() > 1 {
-        match builtins.get(&"type") {
-            Some(&help) => { 
-                println!("{}", help);
-                return;
-            },
-            _ => println!("Error: invalid argments"),
-        }
+    pub fn echo(&self, msg: &[String]) {
+        println!("{}", msg.join(" "));
     }
 
-    let command = args[0].clone();
-    match builtins.get(command.as_str()) {
-        Some(_) => println!("{} is a shell builtin", command),
-        _ => {
-            let (found, p) = search_in_path(&command);
-            if found {
-                println!("{} is {}", command, p);
-            } else {
-                println!("{}: not found", command);
+    pub fn cmd_type(&self, args: &[String]) {
+        if args.is_empty() || args.len() > 1 {
+            match self.builtins.get("type") {
+                Some(help) => { 
+                    println!("{}", help);
+                    return;
+                },
+                _ => println!("Error: invalid argments"),
             }
         }
-    }
-}
-
-fn pwd_cmd() {
-    let pwd = WalkDir::new(".").max_depth(0).into_iter().next();
-    match pwd {
-        Some(Ok(entry)) => {
-            let abs_path = fs::canonicalize(entry.path()).unwrap();
-            println!("{}", abs_path.display());
-        },
-        Some(Err(error)) => eprintln!("failed to get current directory: {}", error),
-        None => eprintln!("no current working directory available!")
-    }
     
-}
-
-fn search(program: &String, path: &Vec<String>) -> (bool, String) {
-    for p in path {
-        for entry in WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
-            let bin = entry.path().display().to_string();
-            if bin.ends_with(&format!("/{}", program)) {
-                return (true, bin);
-             }                 
+        let command = args[0].clone();
+        match self.builtins.get(command.as_str()) {
+            Some(_) => println!("{} is a shell builtin", command),
+            _ => match self.search(&command) {
+                    Some(p) => println!("{} is {}", command, p),
+                    None => println!("{}: not found", command),
+                },
         }
     }
-    return (false, String::new())
-}
 
-fn search_in_path(program : &String) -> (bool, String) {
-    let path : Vec<String> = env::var("PATH").unwrap().split(":").map(str::to_string).collect();
-    return search(&program, &path);
-}
+    pub fn pwd(&self) {
+        let pwd = WalkDir::new(&self.current_dir).max_depth(0).into_iter().next();
+        match pwd {
+            Some(Ok(entry)) => {
+                let abs_path = fs::canonicalize(entry.path()).unwrap();
+                println!("{}", abs_path.display());
+            },
+            Some(Err(error)) => eprintln!("failed to get current directory: {}", error),
+            None => eprintln!("no current working directory available!")
+        }
+    }
 
-fn execute(program : &String, arguments : &Vec<String>) {
-    let cmd = program.rsplit("/").next().unwrap();
-    let output = Command::new(cmd).args(arguments).output().expect("failed to execute process");
+    fn search(&self, program: &String) -> Option<String> {
+        for p in &self.path {
+            for entry in WalkDir::new(p).into_iter().filter_map(|e| e.ok()) {
+                let bin = entry.path().display().to_string();
+                if bin.ends_with(&format!("/{}", program)) {
+                    return Some(bin);
+                 }                 
+            }
+        }
+        return None
+    }
 
-    print!("{}", String::from_utf8_lossy(&output.stdout));
+    pub fn execute(&self, program : &String, arguments : &Vec<String>) {
+        let cmd = program.rsplit("/").next().unwrap();
+        let output = Command::new(cmd).args(arguments).output().expect("failed to execute process");
+    
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }    
 }
 
 fn main() {
-    let mut rush = RushState::new();
+    let mut rush = RushShell::new();
 
     loop {
         print!("$ ");
@@ -124,15 +108,13 @@ fn main() {
                     println!("Wrong exit");
                 }
             },
-            Some("echo") => echo_cmd(&args),
-            Some("type") => type_cmd(&args),
-            Some("pwd") => pwd_cmd(),
+            Some("echo") => rush.echo(&args),
+            Some("type") => rush.cmd_type(&args),
+            Some("pwd") => rush.pwd(),
             Some(cmd) => {
-                let (found, file_path) = search_in_path(&cmd.to_string());
-                if found {
-                    execute(&file_path, &args);
-                } else {
-                    println!("{}: command not found", input.trim());
+                match rush.search(&cmd.to_string()) {
+                    Some(file_path) => rush.execute(&file_path, &args),
+                    None => eprintln!("{}: command not found", input.trim()),
                 }
             },
             None => continue,
