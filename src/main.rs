@@ -2,10 +2,11 @@
 
 use std::env;
 use std::fs;
-use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
+use std::path::Path;
 use std::process::Command;
+use std::str;
 use walkdir::WalkDir;
 
 struct RushShell {
@@ -84,9 +85,11 @@ impl RushShell {
             if dir.starts_with("~") {
                 dir = dir.replace("~", &self.home.to_string());
             }
-            let path_buf = fs::canonicalize(&dir).unwrap();
-            let path = path_buf.as_path();
+            let mut path = Path::new(&dir);
             if path.exists() {
+                let path_buf = fs::canonicalize(&dir).unwrap();
+                path = path_buf.as_path();
+    
                 if env::set_current_dir(&path).is_ok() {
                     self.current_dir = env::current_dir().expect("Couldn't get current dir").display().to_string();
                 } else {
