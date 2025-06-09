@@ -13,6 +13,7 @@ struct RushShell {
     builtins : HashMap<String, String>,
     path : Vec<String>,
     current_dir: String,
+    home: String,
 }
 
 impl RushShell {
@@ -27,7 +28,8 @@ impl RushShell {
         return RushShell{
             path: env::var("PATH").unwrap().split(":").map(str::to_string).collect(),
             builtins: builtins_table,
-            current_dir: ".".to_string(),
+            current_dir: env::current_dir().expect("Couldn't get current dir").display().to_string(),
+            home: env::var("HOME").expect("Undefined $HOME")
         }
     }
 
@@ -70,13 +72,25 @@ impl RushShell {
 
     pub fn chdir(&mut self, args: &[String]) {
         if args.len() > 1{
-            eprintln!("cd: too many arguments")
-        }
-        let dir = &args[0];
-        if Path::new(dir).exists() {
-            self.current_dir = dir.clone();
+            eprintln!("cd: too many arguments");
         } else {
-            eprintln!("cd: {}: No such file or directory", dir);
+            let dir;
+            if args.len() == 0 {
+                dir = self.home.clone();
+            } else {
+                dir = args[0].clone();
+            }
+
+            let path = Path::new(&dir);
+            if path.exists() {
+                if env::set_current_dir(&path).is_ok() {
+                    self.current_dir = env::current_dir().expect("Couldn't get current dir").display().to_string();
+                } else {
+                    eprintln!("cd: error changing directory!");
+                }
+            } else {
+                eprintln!("cd: {}: No such file or directory", dir);
+            }    
         }
     }
 
