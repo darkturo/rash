@@ -2,7 +2,6 @@
 
 use std::env;
 use std::fs;
-use std::path::Path;
 use std::str;
 use std::io::{self, Write};
 use std::collections::HashMap;
@@ -70,18 +69,23 @@ impl RushShell {
         }
     }
 
+    
     pub fn chdir(&mut self, args: &[String]) {
         if args.len() > 1{
             eprintln!("cd: too many arguments");
         } else {
-            let dir;
+            let mut dir;
             if args.len() == 0 {
                 dir = self.home.clone();
             } else {
                 dir = args[0].clone();
             }
 
-            let path = Path::new(&dir);
+            if dir.starts_with("~") {
+                dir = dir.replace("~", &self.home.to_string());
+            }
+            let path_buf = fs::canonicalize(&dir).unwrap();
+            let path = path_buf.as_path();
             if path.exists() {
                 if env::set_current_dir(&path).is_ok() {
                     self.current_dir = env::current_dir().expect("Couldn't get current dir").display().to_string();
