@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 use std::str;
+use shell_words;
 use walkdir::WalkDir;
 
 struct RushShell {
@@ -121,14 +122,6 @@ impl RushShell {
     }    
 }
 
-fn parse_args(input: &String) -> (Option<&str>, Vec<String>) {
-    let mut parts = input.split_whitespace();
-    let first = parts.next();
-    let rest : Vec<String> = parts.map(str::to_string).collect();
-
-    return (first, rest);
-}
-
 fn main() {
     let mut rush = RushShell::new();
 
@@ -140,8 +133,11 @@ fn main() {
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
 
-        let (command, args) = parse_args(&input);
-        match command {
+        let mut parts = shell_words::split(&input).unwrap_or_default();
+        let command = parts.get(0).cloned();
+        let args :Vec<String> = parts.drain(1..).collect();
+
+        match command.as_deref() {
             Some("exit") => {
                 if args.is_empty() || args == ["0"] {
                     break;
