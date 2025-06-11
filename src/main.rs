@@ -121,6 +121,14 @@ impl RushShell {
     }    
 }
 
+fn parse_args(input: &String) -> (Option<&str>, Vec<String>) {
+    let mut parts = input.split_whitespace();
+    let first = parts.next();
+    let rest : Vec<String> = parts.map(str::to_string).collect();
+
+    return (first, rest);
+}
+
 fn main() {
     let mut rush = RushShell::new();
 
@@ -131,10 +139,8 @@ fn main() {
         // Wait for user input
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
-    
-        let mut parts = input.split_whitespace();
-        let command = parts.next();
-        let args : Vec<String> = parts.map(str::to_string).collect();
+
+        let (command, args) = parse_args(&input);
         match command {
             Some("exit") => {
                 if args.is_empty() || args == ["0"] {
